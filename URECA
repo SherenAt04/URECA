@@ -1,0 +1,30 @@
+# FIx the random seed to 5
+Random.seed!(5) 
+
+# Nodes in the frictional domain of each fault
+N = 1400
+
+# Plots results, otherwise put to 0
+plotflag = 0
+
+# Save data for the plotting figures
+saveflag = 1
+
+# Shear modulus
+mu = 32.04e9
+
+# Poisson ration, which could be interpreted as undrained poisson's ration
+nu = 0.35
+
+# Skempton's coeffictient which scales the undrained pore pressure response 
+B = 0.8
+
+# Fault half-length
+LF = 24/2
+
+# If 1, uses aging law, if other numbers, use slip law
+AL = 1
+
+yf = [-20 -LF LinRange(-LF, LF, N-2) LF+20]
+yf = yf - yf(1)
+yf
