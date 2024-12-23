@@ -1,4 +1,8 @@
-# FIx the random seed to 5
+# URECA
+# 6 October 2024
+
+using Random
+# Fix the random seed to 5
 Random.seed!(5) 
 
 # Nodes in the frictional domain of each fault
@@ -20,11 +24,27 @@ nu = 0.35
 B = 0.8
 
 # Fault half-length
-LF = 24/2
+LF = 24 / 2
 
 # If 1, uses aging law, if other numbers, use slip law
 AL = 1
 
-yf = [-20 -LF LinRange(-LF, LF, N-2) LF+20]
-yf = yf - yf(1)
-yf
+# linspace function in Matlab creates a vector of spaced elements. In Julia, we can use 
+# range or LinRange
+# vcat = concatenates vectors vertically
+# range() creates vector of N-2 interval between -LF and LF
+# -20.-LF and LF + 20 as 1st and last elements of the vector
+# .- to substract a scalar to the entire vector
+yf = vcat(-20 .- LF, range(-LF, stop=LF, length=N-2), LF + 20)
+yf .-= yf[1]
+
+# Boundary Element Method simulation to model fault mechanics 
+# .* = element-wise multiplication, creating array of xf zeros with same size as yf
+xf = 0.0 .* yf
+
+# plot(xf, yf)
+# return
+
+# call function crack_bem_pert_H
+
+
