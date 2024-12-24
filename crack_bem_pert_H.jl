@@ -1,9 +1,32 @@
+# The function makes the simulation of Boundary Element Method (BEM)
+# for a fault in a material
+# It will calculates the stress and vector properties of the fault
+# which will be used to analyse the mechanical behaviour of the faults
+
+# Flow of the function:
+# Calculate the midpoints and segment lengths
+# Define patch properties such as the dimensions, strike-dip orientation
+# normal, strike-slip, and dip-slip vectors
+# Group all of the properties to a matrix
+# Use the matrix for Green's functions and stress calculation
+
 function crack_bem_pert_H(L, mu, nu, x, y)
     # inputs:
     # L = length of fault
     # mu = shear modulus
     # nu = Poisson's ration
     # x, y = coordinates of the fault
+
+    # outputs:
+    # G = matrix representing Green's functions for displacements caused by the fault movement
+    # GN = Green's functions related to normal stress 
+    # PU = means stress values (normal+shear) over each patch
+    # m = matrix containing geometric properties, such as length, width
+    # depth, strike, dip, midpoint coordinates
+    # vn = normal vectors to the fault at each patch
+    # vs = strike-slip direction vectors 
+    # vd = dip-slip direction vectorss
+    # xloc = 3D coordinates of patch centers
 
     # mindpoints of fault segments
     xc = 0.5 .* (x[2:end] .+ x[1:end-1]) # x-coordinates of midpoints
@@ -60,6 +83,26 @@ function crack_bem_pert_H(L, mu, nu, x, y)
         # variable vd lies along the fault dip direction which defines the vertical slip 
         # direction for the dip-slip motion 
 
+        vd[:, iN] .= vd[:, iN] / norm(vd[:, iN])
+        # normalize the vectors 
+
     end
+
+# initilise a matrix m of size of 10 x N with zeros
+m = zeros(10, N)
+
+# Assign values to the rows of m
+m[1, :] .= lstat
+m[2, :] .= W
+m[3, :] .= D
+m[4, :] .= patch_dip
+m[5, :] .= patch_strike
+m[6, :] .= xc
+m[7, :] .= yc
+
+# define xloc as a 3 x N matrix
+xloc = [m[6, :]; m[7, :]; -m[3,:]]
+
+
 
 end
