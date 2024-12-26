@@ -103,6 +103,34 @@ m[7, :] .= yc
 # define xloc as a 3 x N matrix
 xloc = [m[6, :]; m[7, :]; -m[3,:]]
 
+# Initialise matrix G, GN and PU 
+G = zeros(N, N)
+GN = zeros(N, N)
+PU = zeros(N, N)
+
+# Create a vertical unit vector vss 
+vss = [0.0, 0.0, 1.0]
+for i in 1:N 
+    for i2 in 0:0
+        # Copy the i-th column of m 
+        m1 = copy(m[:,i]) 
+        m1[8 + i2] = 1 
+
+        # Compute stress tensor
+        Stress, _ = RDstressFS(
+            xloc[1,:], xloc[2,:], xloc[3,:], 
+            m1[6], m1[7], m1[3], m1[1], m1[2],
+            0, m1[4], m1[5], 90, 1, 0, mu, lambda, "Pc"
+        )
+
+        # Rearrange stress matrix
+        S = permutedims(Stress[:, [1,4,5,2,6,3]])
+
+        # Compute traction vectors
+        Tn = [
+            
+        ]
+
 
 
 end
