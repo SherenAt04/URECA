@@ -128,8 +128,18 @@ for i in 1:N
 
         # Compute traction vectors
         Tn = [
-            
+            sum(S[1:3, :] .* vn)
+            sum(S[[2, 4, 5], :] .* vn)
+            sum(S[[3, 5, 6], :] .* vn)
         ]
+
+        # Update the matrix 
+        G[:, 1] .= sum(Tn .* vss)
+        GN[:, i] .= sum(Tn .* vn)
+        PU[:, i] .= -(S[1,:] + S[4,:] + S[6,:]) / 3
+
+    end
+end 
 
 
 
