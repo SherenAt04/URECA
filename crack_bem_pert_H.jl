@@ -138,9 +138,11 @@ for i in 1:N
         GN[:, i] .= sum(Tn .* vn)
         PU[:, i] .= -(S[1,:] + S[4,:] + S[6,:]) / 3
 
+
     end
 end 
 
 # i am so confused help lol
+disp(G,GN)
 
 end
