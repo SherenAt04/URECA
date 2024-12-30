@@ -46,5 +46,25 @@ xf = 0.0 .* yf
 # return
 
 # call function crack_bem_pert_H
+# G = shear stress
+# GN = normal stress interactions
+# PU = pore pressure interactions on the fault
+# mfault = fault-specific matrix for boundary condition
+# vn, vs, vd = normal, shear, and displacement components at fault Nodes
+# xloc = location of fault Nodes
+#G, GN, PU, mfault, vn, vs, vd, xloc = crack_bem_pert_H(L, mu, nu, x, y)
+
+x = [0.0, 1.0, 2.0, 3.0]
+y = [0.0, 0.0, 0.0, 0.0]
+L = 1.0
+mu = 30e9
+nu = 0.25
+crack_bem_pert_H(L, mu, nu, x, y)
+@show xc 
+
+
+
+
+
 
 
