@@ -80,9 +80,18 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
     P3 = Rt * Pt3 + Pr 
     P4 = Rt * Pt4 + Pr 
 
-    return P1, P2, P3, P4 
+    return P1, P2, P3, P4
 
 
+
+
+
+
+
+
+
+
+    
     
 
 
