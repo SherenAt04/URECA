@@ -91,8 +91,13 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
 
 
 
+
+
+
+
+
     
-    
+
 
 
 
