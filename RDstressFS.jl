@@ -124,6 +124,70 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
     zn = z[casenLog]
 
     # Configuration I 
+    if count(casepLog) != 0
+        # calculate first angular dislocation contribution
+        Exx1Tp, Eyy1Tp, Ezz1Tp, Exy1Tp, Exz1Tp, Eyz1Tp = RDSetupS(xp, yp, zp, bx, by, bz, nu, p1, e14)
+        # calculate second angular dislocation contribution
+        Exx2Tp, Eyy2Tp, Ezz2Tp, Exy2Tp, Exz2Tp, Eyz2Tp = RDSetupS(xp, yp, zp, bx, by, bz, nu, p1, -e12)
+        # calculate third angular dislocation contribution
+        Exx3Tp, Eyy3Tp, Ezz3Tp, Exy3Tp, Exz3Tp, Eyz3Tp = RDSetupS(xp, yp, zp, bx, by, bz, nu, p1, -e23)
+        # calculate fourth angular dislocation contribution
+        Exx4Tp, Eyy4Tp, Ezz4Tp, Exy4Tp, Exz4Tp, Eyz4Tp = RDSetupS(xp, yp, zp, bx, by, bz, nu, p1, -e34)
+    end
+
+    # Configuration II 
+    if count(casenLog) != 0
+        # calculate first angular dislocation contribution
+        Exx1Tn, Eyy1Tn, Ezz1Tn, Exy1Tn, Exz1Tn, Eyz1Tn = RDSetupS(xn, yn, zn, bx, by, bz, nu, p1, -e14)
+        # calculate second angular dislocation contribution
+        Exx2Tn, Eyy2Tn, Ezz2Tn, Exy2Tn, Exz2Tn, Eyz2Tn = RDSetupS(xn, yn, zn, bx, by, bz, nu, p1, e12)
+        # calculate third angular dislocation contribution
+        Exx3Tn, Eyy3Tn, Ezz3Tn, Exy3Tn, Exz3Tn, Eyz3Tn = RDSetupS(xn, yn, zn, bx, by, bz, nu, p1, e23)
+        # calculate fourth angular dislocation contribution
+        Exx4Tn, Eyy4Tn, Ezz4Tn, Exy4Tn, Exz4Tn, Eyz4Tn = RDSetupS(xn, yn, zn, bx, by, bz, nu, p1, e34)
+    end
+
+    # calculate the strain tensor components in RDCS
+    if count(casepLog) != 0 
+        exx[casepLog] .= Exx1Tp .+ Exx2Tp .+ Exx3Tp .+ Exx4Tp
+        eyy[casepLog] .= Eyy1Tp .+ Eyy2Tp .+ Eyy3Tp .+ Eyy4Tp
+        ezz[casepLog] .= Ezz1Tp .+ Ezz2Tp .+ Ezz3Tp .+ Ezz4Tp
+        exy[casepLog] .= Exy1Tp .+ Exy2Tp .+ Exy3Tp .+ Exy4Tp
+        exz[casepLog] .= Exz1Tp .+ Exz2Tp .+ Exz3Tp .+ Exz4Tp
+        eyz[casepLog] .= Eyz1Tp .+ Eyz2Tp .+ Eyz3Tp .+ Eyz4Tp
+    end
+
+    if count(casenLog) != 0
+        exx[casenLog] .= Exx1Tn .+ Exx2Tn .+ Exx3Tn .+ Exx4Tn
+        eyy[casenLog] .= Eyy1Tn .+ Eyy2Tn .+ Eyy3Tn .+ Eyy4Tn
+        ezz[casenLog] .= Ezz1Tn .+ Ezz2Tn .+ Ezz3Tn .+ Ezz4Tn
+        exy[casenLog] .= Exy1Tn .+ Exy2Tn .+ Exy3Tn .+ Exy4Tn
+        exz[casenLog] .= Exz1Tn .+ Exz2Tn .+ Exz3Tn .+ Exz4Tn
+        eyz[casenLog] .= Eyz1Tn .+ Eyz2Tn .+ Eyz3Tn .+ Eyz4Tn
+    end
+
+    if count(casezLog) != 0
+        exx[casezLog] .= NaN
+        eyy[casezLog] .= NaN
+        ezz[casezLog] .= NaN
+        exy[casezLog] .= NaN
+        exz[casezLog] .= NaN
+        eyz[casezLog] .= NaN
+    end
+
+    # transform the strain tensor components from RDCS into EFCS
+    Exx, Eyy, Ezz, Exy, Eyz = TensTrans(exx, eyy, exy, exz, eyz, hcat(Vnorm, Vstrike, Vdip))
+
+    # calculate the stress tensor components in EFCS 
+    Sxx = 2 * mu * Exx .+ lambda * (Exx .+ Eyy .+ Ezz)
+    Syy = 2 * mu * Eyy .+ lambda * (Exx .+ Eyy .+ Ezz)
+    Szz = 2 * mu * Ezz .+ lambda * (Exx .+ Eyy .+ Ezz)
+    Sxy = 2 * mu * Exy 
+    Sxz = 2 * mu * Exz 
+    Syz = 2 * mu * Eyz 
+
+    Strain = [Exx, Eyy, Ezz, Exy, Exz, Eyz]
+    Stress = [Sxx, Syy, Szz, Sxy, Sxz, Syz]
     
 
 
