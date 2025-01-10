@@ -82,14 +82,49 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
 
     return P1, P2, P3, P4
 
+    # calculate unit strike, dip, and normal 
+    eZ = [0.0, 0.0, 1.0]
+    Vnorm = Rt * eZ
+    Vstrike = [sin(deg2rad(strike)), cos(deg2rad(strike)), 0.0]
+    Vdip = cross(Vnorm, Vstrike)
 
+    Pm = (P1 + P2 + P3 + P4) / 4 
 
+    # Transform coordinates and slip vector components from EFCS to RDCS
+    p1 = zeros(3)
+    p2 = zeros(3)
+    p3 = zeros(3)
+    p4 = zeros(3)
 
+    At = hcat(Vnorm, Vstrike, Vdip)'
+    x, y, z = CoordTrans(X .- Pm[1], Y .- Pm[2], Z .- Pm[3], At)
+    p1 .= CoordTrans(P1[1] - Pm[1], P1[2] - Pm[2], P1[2] - Pm[3], At)
+    p2 .= CoordTrans(P2[1] - Pm[1], P2[2] - Pm[2], P2[2] - Pm[3], At)
+    p3 .= CoordTrans(P3[1] - Pm[1], P3[2] - Pm[2], P3[2] - Pm[3], At)
+    p4 .= CoordTrans(P4[1] - Pm[1], P4[2] - Pm[2], P4[2] - Pm[3], At)
 
+    # Calculate the unit vectors along RD sides in RDCS
+    e12 = (p2 - p1) / norm(p2 - p1)
+    e23 = (p3 - p2) / norm(p3 - p2)
+    e34 = (p4 - p3) / norm(p4 - p3)
+    e14 = (p4 - p1) / norm(p4 - p1)
 
+    # Determine the best artifact-free configuration for each calculation point
+    Rectmode = rectmodefinder(y, z, x, p1[2:3], p3[2:3], p4[2:3])
+    casepLog = Rectmode .== 1
+    casenLog = Rectmode .== -1
+    casezLog = Rectmode .== 0
 
-   # i really have no idea
+    xp = x[casepLog]
+    yp = y[casepLog]
+    zp = z[casepLog]
 
+    xn = x[casenLog]
+    yn = y[casenLog]
+    zn = z[casenLog]
+
+    # Configuration I 
+    
 
 
 end 
