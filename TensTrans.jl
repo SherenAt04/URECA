@@ -1,5 +1,7 @@
 # TensTrans function
 function TensTrans(Txx1, Tyy1, Tzz1, Txy1, Txz1, Tyz1, A)
+    # This function transforms the coordinates of the tensors, from x1y1z1 coordinates to x2y2z2 coordinates
+    
     Txx2 = A[1]^2 * Txx1 + 2 * A[1] * A[4] * Txy1 + 2 * A[1] * A[7] * Txz1 + 2 * A[4] * A[7] * Tyz1 + A[4]^2 * Tyy1 + A[7]^2 * Tzz1
 
     Tyy2 = A[1]^2 * Txx1 + 2 * A[2] * A[5] * Txy1 + 2 * A[2] * A[8] * Txz1 + 2 * A[5] * A[8] * Tyz1 + A[5]^2 * Tyy1 + A[8]^2 * Tzz1

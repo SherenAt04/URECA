@@ -1,5 +1,9 @@
 # CoordTrans function
 function CoordTrans(x1, x2, x3, A)
+    # This function transforms the coordinates of the vectors from x1x2x3 coordinates to X1X2X3 coordinates
+    # The input will include x1, x2, x3 and A
+    # A is the transformation matrix 
+
     x1 = vec(x1)
     x2 = vec(x2)
     x3 = vec(x3)
