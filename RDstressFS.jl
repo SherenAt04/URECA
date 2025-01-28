@@ -1,12 +1,20 @@
 function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, slip, opening, mu, lambda, RefPoint)
+   # This function transforms the strain and stress tensors for a fault system (FS) in a 3D system based on the rectangular dislocation (RD) model
+   # The inputs are:
+   # - fault geomtery parameters: coordinates of observation points (X, Y, Z), coordinates of the fault center (X0, Y0, depth), length and width of the fault plane (L, W), fault orientation angles in degrees (plunge, dip, strike), fault slip characteristics (rake, slip, opening)
+   # - elastic properties: shear modulus (mu), first Lame parameter (lambda)
+   # - Reference point to determine which points of the fault that can be the reference for calculations
+   #   This includes the fault corners (P1, P2, P3, P4), center (PC) and midpoints of the fault edges
+
     # Poisson's ratio
     nu = lambda / (lambda + mu) / 2 
 
-    # Tensile-slip
+    # slip components 
+    # Tensile-slip = normal opening of the fault
     bx = opening 
-    # Strike-slip
+    # Strike-slip = horizontal movement along the fault strike
     by = slip * cosd(rake)
-    # Dip-slip
+    # Dip-slip = vertical movement along the fault dip
     bz = slip * sind(rake)
 
     # Ensure x is a column vector
@@ -17,6 +25,11 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
     Z = Z[:]
 
     # Rotation matrix
+    # constructs the 3 rotation matrix to transform between coordinate systems
+    # Rz1 = rotates about the z axis by the plunge angle
+    # Ry = rotates about the y axis by the dip angle
+    # Rz2 = rotates about the z-axis by the strike angle 
+    # Rt (combined rotation matrix) transforms the fault coordinate system (FCS) to Earth-fixed coordinate system (EFCS)
     Rz1 = [
         cosd(plunge) sind(plunge) 0
         -sind(plunge) cosd(plunge) 0
@@ -38,7 +51,9 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
     Rt = Rz2 * Ry * Rz1
     @show Rt
     
+    # fault geometry 
     # Coordinates for the points defining the fault
+    # the fault is defined as a rectangle with Pt as the corners of the fault plane 
     Pt1 = [-W/2, L/2, 0]'
     Pt2 = [-W/2. - L/2, 0]'
     Pt3 = [W/2, - L/2, 0]'
@@ -47,24 +62,34 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
     # Set reference point based on the input argument 
     if RefPoint == "Pc"
         Ptr = [0, 0, 0]'
+        # if the Refpoint is the center of he fault plane, then the reference point is set to the origin of the local fault coordinate system 
     elseif RefPoint == "P1"
-        Ptr = [-W/2, L/2, 0]'
-    elseif RefPoint == "P2"
-        Ptr = [-W/2, - L/2, 0]'
+        Ptr = [-W/2, L/2, 0]' # -W/2 = half the width to the left, L/2 = half the length upward
+        # if the Refpoint is the top-left corner of the fault plane in the fault coordinate system, then the reference point will be relative to the fault center 
+    elseif RefPoint == "P2" 
+        Ptr = [-W/2, - L/2, 0]' # -W/2 = half the width to the left, -L/2 = half the length downward
+        # if the Refpoint is the bottom-left corner of the fault plane, then the reference point will be relative to the fault center
     elseif RefPoint == "P3"
-        Ptr = [W/2, - L/2, 0]'
+        Ptr = [W/2, - L/2, 0]' # W/2 = half the width to the right, -L/2 = half the length downward 
+        # if the Refpoint is the bottom-right corner, the reference point will be relative to the fault center 
     elseif RefPoint == "P4"
-        Ptr = [W/2, L/2, 0]'
+        Ptr = [W/2, L/2, 0]' #W/2 = half the width to the right, L/2 = half the length upward 
+        # if the Refpoint is the top-right corner, the reference point will be relative to the fault center 
     elseif RefPoint in ["mP12", "mP21"]
-        Ptr = [-W/2, 0, 0]'
+        Ptr = [-W/2, 0, 0]' # -W/2 = half the width to the left, 0 = center of the edge in the length direction 
+        # if the refpoint is the midpoint of the left edge of the fault plane (either P1 or P2), then the reference point will be relative to the left side of the fault 
     elseif RefPoint in ["mP23", "mP32"]
-        Ptr = [0, - L/2, 0]'
+        Ptr = [0, - L/2, 0]' # 0 = center of the edge in the width direction, -L/2 = half the length downward 
+        # if the refpoint is the midpoint of the bottom edge of the fault plane (either P2 and P3), then the reference point will be relative to the downward of the fault 
     elseif RefPoint in ["mP34", "mP43"]
-        Ptr = [W/2, 0, 0]'
+        Ptr = [W/2, 0, 0]' # W/2 = half the width to the right, 0 = center of the edge in the length direction 
+        # if the refpoint is the midpoint of the right vertical edge of the fault plane (either P3 and P4), then the reference point will be relative to the right side of the fault
     elseif RefPoint in ["mP14", "mP41"]
-        Ptr = [0, L/2, 0]'
+        Ptr = [0, L/2, 0]' # 0 = center of the edge in the width direction, L/2 = half the length upward 
+        # if the refpoint is the midpoint of the top horizontal edge of the fault plane (either P1 and P4), then the reference point will be relative to the upward of the fault 
     else
         throw(ArgumentError("Undefined RD reference point!"))
+        # if the refpoint is not one of the options, the output will be error and stop the loop
     end 
 
     @show size(X0)
@@ -73,7 +98,7 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
     @show size(Ptr)
     @show size(Rt)
 
-    # Calculate the displacement 
+    # Transform the fault corners coordinate to global EFCS 
     Pr = [X0, Y0, -depth]' - Rt * Ptr
     P1 = Rt * Pt1 + Pr 
     P2 = Rt * Pt2 + Pr 
@@ -90,7 +115,7 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
 
     Pm = (P1 + P2 + P3 + P4) / 4 
 
-    # Transform coordinates and slip vector components from EFCS to RDCS
+    # Transform coordinates and slip vector components from EFCS to RDCS by using CoordTrans function 
     p1 = zeros(3)
     p2 = zeros(3)
     p3 = zeros(3)
@@ -122,6 +147,10 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
     xn = x[casenLog]
     yn = y[casenLog]
     zn = z[casenLog]
+
+    # strain calculation
+    # for each configuration, function RDSetupS will calculate the strain tensor components at observation points such as the contributions from angular dislocations along fault edges and summing the contribution from all the edges
+    # for undefined points (casezLog), the strain components will be set to NaN 
 
     # Configuration I 
     if count(casepLog) != 0
@@ -186,6 +215,7 @@ function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, sli
     Sxz = 2 * mu * Exz 
     Syz = 2 * mu * Eyz 
 
+    # output 
     Strain = [Exx, Eyy, Ezz, Exy, Exz, Eyz]
     Stress = [Sxx, Syy, Szz, Sxy, Sxz, Syz]
     

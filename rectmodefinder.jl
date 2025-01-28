@@ -39,6 +39,16 @@ function rectmodefinder(x,y,z,p1,p2,p3,p4)
     P3 = r[:, 3]
     P4 = r[:, 4]
 
+    rectmode = ones(Int, length(x))
+
+    # Partition the RD plane using the bisectors of the RD angles and RD sides
+    rectmode[(x .>= 0) .& (y .>= 0 ) .& ((y .- P1[2]) .< (x .- P1[1]))] .= -1
+    rectmode[(x .<= 0) .& (y .>= 0) .& ((y .- P2[2]) .> -(x .- P2[1]))] .= -1
+    rectmode[(x .<= 0) .& (y .<= 0) .& ((y .- P3[2]) .> (x .- P3[1]))] .= -1
+    rectmode[(x .>= 0) .& (y .<= 0) .& ((y .- P4[2]) .< -(x .- P4[1]))] .= -1
+    rectmode[(x .< P1[1]) .& (x .> P3[1]) .& (y .< P1[2]) .& (y .> P3[2])] .= -1
+    rectmode[((x .== P1[1]) .| (x .== P3[1])) .& (y .<= P1[2]) .& (y .>= P3[2]) .& (z .== 0)] .= 0
+    rectmode[((y .== P1[2]) .| (y .== P3[2])) .& (x .<= P1[1]) .& (x .>= P3[1]) .& (z .== 0)] .= 0
 
 
 
