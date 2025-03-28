@@ -1,0 +1,21 @@
+function rectmodefinder(y, z, x, p1, p2, p3, p4)
+    # Rectmodefinder determines the configuration mode of the rectangular dislocation.
+    # It checks which configuration of the four points is active for each calculation 
+    # point (based on the given input coordinates).
+    
+    # Initialize the output mode
+    Rectmode = zeros(Int, length(x))  # Vector of integers to store modes
+    
+    # Check each point's position relative to the vertices and assign modes
+    for i in 1:length(x)
+        if y[i] >= p1[2] && y[i] <= p2[2] && z[i] >= p1[3] && z[i] <= p4[3]
+            Rectmode[i] = 1  # Configuration I
+        elseif y[i] <= p1[2] && y[i] >= p4[2] && z[i] <= p3[3] && z[i] >= p2[3]
+            Rectmode[i] = -1  # Configuration II
+        else
+            Rectmode[i] = 0  # No valid mode
+        end
+    end
+    
+    return Rectmode
+end

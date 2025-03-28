@@ -1,0 +1,69 @@
+using Random
+using LinearAlgebra
+using Printf
+using Statistics # Import the Statistics module
+
+function populate_friction_vectors(N::Int64)
+    b = zeros(N - 1)
+    a = zeros(N - 1)
+    L = zeros(N - 1)
+
+    range1_b = [0.0175, 0.0185]
+    range2_b = [0.001, 0.003]
+    range1_a = [0.0045, 0.005]
+    range2_a = [0.009, 0.012]
+    range1_L = [0.00000009, 0.00000012]
+    range2_L = [0.00001, 0.00006]
+
+    i = 1
+    current_range_b = range1_b
+    current_range_a = range1_a
+    current_range_L = range1_L
+
+    while i <= N - 1
+        if i >= 360 && i <= 840
+            for j = i:min(840, N - 1)
+                b[j] = range1_b[1] + (range1_b[2] - range1_b[1]) * rand()
+                a[j] = range1_a[1] + (range1_a[2] - range1_a[1]) * rand()
+                L[j] = range1_L[1] + (range1_L[2] - range1_L[1]) * rand()
+            end
+            i = 841
+            continue
+        end
+
+        switch_length = rand(7:16)
+
+        for j = i:min(i + switch_length - 1, N - 1)
+            if current_range_b == range1_b
+                b[j] = range1_b[1] + (range1_b[2] - range1_b[1]) * rand()
+                a[j] = range1_a[1] + (range1_a[2] - range1_a[1]) * rand()
+                L[j] = range1_L[1] + (range1_L[2] - range1_L[1]) * rand()
+            else
+                b[j] = range2_b[1] + (range2_b[2] - range2_b[1]) * rand()
+                a[j] = range2_a[1] + (range2_a[2] - range2_a[1]) * rand()
+                L[j] = range2_L[1] + (range2_L[2] - range2_L[1]) * rand()
+            end
+        end
+
+        if current_range_b == range1_b
+            current_range_b = range2_b
+            current_range_a = range2_a
+            current_range_L = range2_L
+        else
+            current_range_b = range1_b
+            current_range_a = range1_a
+            current_range_L = range1_L
+        end
+
+        i += switch_length
+    end
+
+    # Apply moving average smoothing
+    a .= moving_average(a, 5)
+    b .= moving_average(b, 5)
+    L .= moving_average(L, 5)
+
+    return b, a, L
+end
+
+

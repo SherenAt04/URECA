@@ -1,0 +1,121 @@
+function RDstressFS(X, Y, Z, X0, Y0, depth, L, W, plunge, dip, strike, rake, slip, opening, μ, λ, RefPoint)
+    # RDstressFS
+    # Calculates stresses and strains associated with a rectangular dislocation in an elastic full-space.
+    
+    nu = λ / (λ + μ) / 2 # Poisson's ratio
+    
+    bx = opening # Tensile-slip
+    by = slip * cosd(rake) # Strike-slip
+    bz = slip * sind(rake) # Dip-slip
+    
+    println("Slip components:")
+    println([bx, by, bz])  # Check if these values change as expected
+
+    X = X[:]  # Flatten the arrays to ensure column vectors
+    Y = Y[:]
+    Z = Z[:]
+
+    println("Initial Coordinates:")
+    println([X, Y, Z])  # Display initial coordinates
+
+    Rz1 = [cosd(plunge) sind(plunge) 0; -sind(plunge) cosd(plunge) 0; 0 0 1]
+    Ry = [cosd(dip) 0 sind(dip); 0 1 0; -sind(dip) 0 cosd(dip)]
+    Rz2 = [cosd(strike) sind(strike) 0; -sind(strike) cosd(strike) 0; 0 0 1]
+    Rt = Rz2 * Ry * Rz1
+
+    # Define points in RDCS
+    Pt1 = [-W/2 L/2 0]'
+    Pt2 = [-W/2 -L/2 0]'
+    Pt3 = [W/2 -L/2 0]'
+    Pt4 = [W/2 L/2 0]'
+
+    if RefPoint == "Pc"
+        Ptr = [0.0, 0.0, 0.0]
+    elseif RefPoint == "P1"
+        Ptr = [-W/2, L/2, 0.0]
+    elseif RefPoint == "P2"
+        Ptr = [-W/2, -L/2, 0.0]
+    elseif RefPoint == "P3"
+        Ptr = [W/2, -L/2, 0.0]
+    elseif RefPoint == "P4"
+        Ptr = [W/2, L/2, 0.0]
+    elseif RefPoint in ["mP12", "mP21"]
+        Ptr = [-W/2, 0.0, 0.0]
+    elseif RefPoint in ["mP23", "mP32"]
+        Ptr = [0.0, -L/2, 0.0]
+    elseif RefPoint in ["mP34", "mP43"]
+        Ptr = [W/2, 0.0, 0.0]
+    elseif RefPoint in ["mP14", "mP41"]
+        Ptr = [0.0, L/2, 0.0]
+    else
+        error("Undefined RD reference point!")
+    end
+
+    Pr = [X0, Y0, -depth] .- (Rt * Ptr) # using the .- operator.
+    P1 = Rt * Pt1 .+ Pr;
+    P2 = Rt * Pt2 .+ Pr;
+    P3 = Rt * Pt3 .+ Pr;
+    P4 = Rt * Pt4 .+ Pr;
+
+    # Calculate unit vectors for strike, dip, and normal to the RD
+    eZ = [0; 0; 1]
+    Vnorm = Rt * eZ
+    Vstrike = [sind(strike); cosd(strike); 0]
+    Vdip = cross(Vnorm, Vstrike)
+
+    Pm = (P1 + P2 + P3 + P4) / 4  # RD centroid
+
+    # Perform coordinate transformations
+    At = [Vnorm Vstrike Vdip]'
+    x_float, y_float, z_float = CoordTrans(X .- Pm[1], Y .- Pm[2], Z .- Pm[3], At)
+    x = fill(x_float, length(X))
+    y = fill(y_float, length(Y))
+    z = fill(z_float, length(Z))
+    p1 = zeros(3)
+    p2 = zeros(3)
+    p3 = zeros(3)
+    p4 = zeros(3)
+
+    p1[1], p1[2], p1[3] = CoordTrans(P1[1] - Pm[1], P1[2] - Pm[2], P1[3] - Pm[3], At)
+    p2[1], p2[2], p2[3] = CoordTrans(P2[1] - Pm[1], P2[2] - Pm[2], P2[3] - Pm[3], At)
+    p3[1], p3[2], p3[3] = CoordTrans(P3[1] - Pm[1], P3[2] - Pm[2], P3[3] - Pm[3], At)
+    p4[1], p4[2], p4[3] = CoordTrans(P4[1] - Pm[1], P4[2] - Pm[2], P4[3] - Pm[3], At)
+
+    e12 = (p2 - p1) / norm(p2 - p1)
+    e23 = (p3 - p2) / norm(p3 - p2)
+    e34 = (p4 - p3) / norm(p4 - p3)
+    e14 = (p4 - p1) / norm(p4 - p1)
+
+    Rectmode = rectmodefinder(y, z, x, p1, p2, p3, p4)
+    casepLog = Rectmode .== 1
+    casenLog = Rectmode .== -1
+    casezLog = Rectmode .== 0
+    xp = x[casepLog]
+    yp = y[casepLog]
+    zp = z[casepLog]
+    xn = x[casenLog]
+    yn = y[casenLog]
+    zn = z[casenLog]
+
+
+    # Compute strain tensor components for Configuration I
+    if count(casepLog) != 0
+        Exx1Tp, Eyy1Tp, Ezz1Tp, Exy1Tp, Exz1Tp, Eyz1Tp = RDSetupS(xp, yp, zp, bx, by, bz, nu, p1, e14)
+        Exx2Tp, Eyy2Tp, Ezz2Tp, Exy2Tp, Exz2Tp, Eyz2Tp = RDSetupS(xp, yp, zp, bx, by, bz, nu, p2, -e12)
+        Exx3Tp, Eyy3Tp, Ezz3Tp, Exy3Tp, Exz3Tp, Eyz3Tp = RDSetupS(xp, yp, zp, bx, by, bz, nu, p3, -e23)
+        Exx4Tp, Eyy4Tp, Ezz4Tp, Exy4Tp, Exz4Tp, Eyz4Tp = RDSetupS(xp, yp, zp, bx, by, bz, nu, p4, -e34)
+    else
+        # Placeholder: Replace with actual calculations for stress and strain
+        Stress = zeros(6, length(x)) # example of correct assignment.
+        Strain = zeros(6, length(x)) # example of correct assignment.
+    end
+
+    # Continue with similar logic for casepLog, casenLog, and casezLog
+    # Further calculations can be done similarly as in MATLAB code.
+
+    # Return the Stress and Strain components in the Earth-Fixed Coordinate System (EFCS)
+    Stress = # Define stress tensor components here
+    Strain = # Define strain tensor components here
+
+    return Stress, Strain
+end

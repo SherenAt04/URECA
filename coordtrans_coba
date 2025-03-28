@@ -1,0 +1,14 @@
+function CoordTrans(xin, yin, zin, A)
+    # This function transforms the input coordinates xin, yin, zin based on
+    # the rotation matrix A. The rotation matrix A is a 3x3 matrix that defines 
+    # the transformation between the input and output coordinate systems.
+    
+    coords = A * [xin; yin; zin]  # Matrix multiplication for coordinate transformation
+    
+    # Extract transformed coordinates as arrays
+    x = coords[1]
+    y = coords[2]
+    z = coords[3]
+    
+    return x, y, z
+end

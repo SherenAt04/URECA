@@ -1,0 +1,145 @@
+# Function for the BEM simulation
+# L = length
+# mu = shear modulus
+# nu = Poisson's ratio
+# x, y = coordinates of the fault
+
+function crack_bem_pert_H(L, mu, nu, x, y)
+    lambda_ = 2 * mu * nu / (1 - 2 * nu)
+
+    # Calculate midpoints, xc and yc
+    xc = 0.5 * (x[2:end] .+ x[1:end-1])
+    yc = 0.5 * (y[2:end] .+ y[1:end-1])
+
+    # Lengths of the segments
+    ls = sqrt.((x[2:end] .- x[1:end-1]).^2 .+ (y[2:end] .- y[1:end-1]).^2)
+
+    println("Length of xc: ", length(xc))
+    println("Length of yc: ", length(yc))
+    println("Length of ls: ", length(ls))
+
+    W = ls .* 0 .+ L * 100
+    D = ls .* 0 .+ L * 100
+
+    # Patch strike and dip
+    patch_strike = 90 .- atand.(diff(y) ./ diff(x))
+    patch_dip = 90 .+ ls .* 0
+
+    lambda_ = 2 * mu * nu / (1 - 2 * nu)
+
+    N = length(xc)
+
+    vn = zeros(3, N)
+    vs = zeros(3, N)
+    vd = zeros(3, N)
+
+    for iN in 1:N
+        if iN <= length(patch_strike)
+           vn[:, iN] = [cosd(patch_strike[iN]) * sind(patch_dip[iN]);
+                         -sind(patch_strike[iN]) * sind(patch_dip[iN]);
+                         cosd(patch_dip[iN])]
+        else
+            vn[:, iN] = [cosd(patch_strike[end]) * sind(patch_dip[end]);
+                         -sind(patch_strike[end]) * sind(patch_dip[end]);
+                         cosd(patch_dip[end])]
+        end
+
+        vn[:, iN] = vn[:, iN] / norm(vn[:, iN])
+        vn_sec = vn[:, iN]
+
+        println(vn_sec)
+
+        vs[1:2, iN] = [0 1; -1 0] * vn[1:2, iN]
+        vs[:, iN] = -vs[:, iN] / norm(vs[:, iN])
+
+        vd[:, iN] = cross(vn[:, iN], vs[:, iN])
+        vd[:, iN] = vd[:, iN] / norm(vd[:, iN])
+    end
+
+    # m matrix (properties of the fault)
+    m = zeros(10, N)
+    m[1, :] .= ls
+    m[2, :] .= W
+    m[3, :] .= D
+    m[4, :] .= patch_dip
+    m[5, :] .= patch_strike
+    m[6, :] .= xc
+    m[7, :] .= yc
+
+    xloc = [m[6, :]; m[7, :]; .-m[3, :]]
+    G = zeros(N, N)
+    GN = zeros(N, N)
+    PU = zeros(N, N)
+
+    vss = [0; 0; 1]
+
+    # Main loop for the stress calculations
+    # Main loop for the stress calculations
+# Main loop for the stress calculations
+    for i = 1:N
+    m1 = m[:, i]
+    m1[8] = 1
+
+    Stress, _ = RDstressFS(xloc[1, :], xloc[2, :], xloc[3, :], 
+                           m1[6], m1[7], m1[3], m1[1], m1[2], 0, 
+                           m1[4], m1[5], 90, 1, 0, mu, lambda, "Pc")
+
+    # Ensure correct ordering
+    if size(Stress, 2) > 1 # Check if Stress has more than one column
+        S = Stress[:, [1, 4, 5, 2, 6, 3]]'
+    else
+        S = Stress' # If Stress has only one column, transpose it.
+    end
+
+
+    # Ensure correct vn size
+    vn = repeat(vn, 1, size(S, 2) ÷ size(vn, 2))
+
+    # Debugging output
+    println(size(S))
+    println(size(vn))
+
+    # Compute Tn
+    if size(S, 1) >= 3 # Check if S has at least 3 rows.
+        Tn = [sum(S[1:3, :] .* vn, dims=1);
+              sum(S[[2, 4, 5], :] .* vn, dims=1);
+              sum(S[[3, 5, 6], :] .* vn, dims=1)]
+    else
+        # Handle the case where S has fewer than 3 rows.
+        # Placeholder: You might need to adjust this based on your specific requirements.
+        Tn = zeros(3, size(vn, 2)) # Example: Create a 3xN matrix of zeros.
+    end
+
+    # Compute projections correctly
+    G[i] = sum(Tn' * vss)
+    GN[i] = sum(sum(Tn .* vn, dims=1))
+
+    println("S(1,:):")
+    println(S[1, :])
+
+    # Add a check to prevent out-of-bounds error when S has only 1 row.
+    if size(S, 1) >= 4
+    println("S(4,:):")
+    println(S[4, :])
+    end
+
+    # Add a check to prevent out-of-bounds error when S has only 1 row.
+    if size(S, 1) >= 6
+    println("S(6,:):")
+    println(S[6, :])
+    end
+
+    # Sum and then average
+    if size(S, 1) >= 6 # Check if S has at least 6 rows.
+    sum_S = sum(S[1, :] .+ S[4, :] .+ S[6, :])
+    PU[i] = -sum_S / 3
+    else
+    PU[i] = 0 # Placeholder: Handle the case where S has fewer than 6 rows.
+    end
+
+    # xloc matrix creation (Ensure xloc is 3x1400)
+    xloc = [m[6, :]; m[7, :]; .-m[3, :]]
+
+    return G, GN, PU, m, vn, vs, vd, xloc
+    end 
+end 

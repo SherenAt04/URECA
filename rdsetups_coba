@@ -1,0 +1,39 @@
+function RDSetupS(x, y, z, bx_array, by_array, bz_array, nu, p_array, e_array)
+    Exx = zeros(Float64, length(x))
+    Eyy = zeros(Float64, length(y))
+    Ezz = zeros(Float64, length(z))
+    Exy = zeros(Float64, length(x))
+    Exz = zeros(Float64, length(x))
+    Eyz = zeros(Float64, length(y))
+
+    num_segments = length(p_array) # assuming p_array is an array of segment p values.
+
+    for segment_idx in 1:num_segments
+        p = p_array[segment_idx]
+        e = e_array[segment_idx]
+        bx = bx_array[segment_idx]
+        by = by_array[segment_idx]
+        bz = bz_array[segment_idx]
+
+        for i in 1:length(x)
+            dx = x[i] - p[1]
+            dy = y[i] - p[2]
+            dz = z[i] - p[3]
+            r = sqrt(dx^2 + dy^2 + dz^2)
+
+            if r == 0.0
+                continue
+            end
+
+            Exx[i] += (bx * (3 * dx^2 - r^2)) / r^5
+            Eyy[i] += (by * (3 * dy^2 - r^2)) / r^5
+            Ezz[i] += (bz * (3 * dz^2 - r^2)) / r^5
+
+            Exy[i] += (3 * bx * dy + 3 * by * dx) / (2 * r^5)
+            Exz[i] += (3 * bx * dz + 3 * bz * dx) / (2 * r^5)
+            Eyz[i] += (3 * by * dz + 3 * bz * dy) / (2 * r^5)
+        end
+    end
+
+    return Exx, Eyy, Ezz, Exy, Exz, Eyz
+end

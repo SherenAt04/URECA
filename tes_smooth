@@ -1,0 +1,5 @@
+using Statistics
+
+a = [1.0, 2.0, 3.0, 4.0, 5.0]
+smoothed_a = smooth(a, method=:gaussian, window=3)
+println(smoothed_a)

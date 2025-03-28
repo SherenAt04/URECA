@@ -1,0 +1,206 @@
+using Random
+using LinearAlgebra
+using Printf
+using Statistics
+
+# Set random seed
+Random.seed!(5)
+
+# Constants and parameters
+mu = 32.04e9  # shear modulus (Pascal)
+nu = 0.35  # Poisson ratio
+B = 0.8  # Skempton's coefficient
+LF = 24 / 2  # half-length of fault
+AL = 1  # Aging law for friction (1 = aging law)
+N = 1400  # number of nodes
+lambda = 2 * mu * nu / (1 - 2 * nu)
+
+# Y-coordinates of nodes along the fault (from -LF to LF)
+yf = [-20 - LF; LinRange(-LF, LF, N - 2); LF + 20]
+yf .-= yf[1]  # Shift fault so first node starts at 0
+L = 1e-7  # dc rate and state parameter
+
+# Boundary Element Method simulation (create a vector of zeros along x-axis)
+xf = zeros(N)
+
+# Boundary Element Method simulation
+#create x and y based on yf.
+x = LinRange(0, length(yf)-1, length(yf))
+y = yf
+
+G, GN, PU, m, vn, vs, vd, xloc = crack_bem_pert_H(L, mu, nu, x, y)
+# Modify crack_bem_pert_H to generate xloc with N = 1400
+G, GN, PU, m, vn, vs, vd, xloc = crack_bem_pert_H(L, mu, nu, x, y)
+
+Y = xloc[2, :]
+
+# Verify Y length
+if length(Y) >= 7
+    dz = Y[7] - Y[6]
+else
+    println("Error: Y vector has length ", length(Y), ", but expected at least 7.")
+    # Handle the error appropriately (e.g., return, throw an exception)
+end
+
+
+# Extract x and y coordinates of fault nodes
+X = xloc[1, :]
+Y = xloc[2, :]
+
+# Adjust pore pressure (contribution to fault slip)
+PU .= B .* PU
+GN .= -GN .- PU
+
+# Initial displacement field (d0)
+d0 = ones(N)
+d0[1] = 0
+d0[end] = 0
+d0[2:end-1] .= true  # Logical array indicating where friction is solved
+d00 = d0 .== 0
+
+# Parameters for slip and stress
+M = 1000  # plot every m-th timestep
+MM = 12  # save every m-th timestep
+Ni = 1000 * M  # total number of time-steps
+
+# Initialize vectors for slip, slip speed, etc.
+dx = zeros(N)
+V = dx
+f0 = 0.6  # initial coefficient
+fr = f0  # reference coefficient
+Vo = 1e-12  # initial slip speed
+Vr = 1e-6  # reference slip speed
+si0 = 20e6  # effective background normal stress
+si = 20e6 .+ zeros(N)  # normal stress vector
+
+eta = mu / (2 * 2670)  # radiation damping approximation
+theta0 = 40956010836.6731  # initial state
+theta = theta0  # state variable
+
+tau0 = 7.2e6  # initial shear stress
+t = 0  # initial time
+
+# Define rate-strength/weakening parameters
+a = 0.005
+b = 0.0018
+
+V .= Vo
+h = π * mu * L / abs((a - b) * si0)
+gridh = yf[5] - yf[4]
+
+if h < gridh * 10
+    println("not resolving nucleation length")
+end
+
+Lb = mu * L / ((1 - nu) * si0 * b)
+println("Lb/gridh = ", Lb / gridh)
+
+if Lb < gridh * 3
+    println("not resolving cohesive zone")
+end
+
+Linf = Lb / π * (b / (b - a))^2
+println("fault length over Linf = ", LF / Linf)
+
+# Initialization of friction parameters
+b = zeros(N - 1, 1)  # Initialize vector b of length N-1
+a = zeros(N - 1, 1)  # Initialize vector a of length N-1
+L = zeros(N - 1, 1)  # Initialize vector L of length N-1
+
+# Value ranges
+range1_b = [0.0175, 0.0185]
+range2_b = [0.001, 0.003]
+range1_a = [0.0045, 0.005]
+range2_a = [0.009, 0.012]
+range1_L = [0.00000009, 0.00000012]
+range2_L = [0.00001, 0.00006]
+
+b, a, L = populate_friction_vectors(N)  # Call the function
+
+# Initialize other variables
+runner = 1
+tryagain = 0
+counter = 0
+miniter = 0
+fract = 3
+frac = 1 / 2^(fract - 1)
+mindt = 8e-7
+tolup = frac * 3.0e-3
+tollo = frac * 1.0e-3
+dt = 1  # initial timestep size
+
+pf0 = 4.0e6 .+ (5.5e6 - 4.0e6) * rand(N)
+
+# Diffusion parameters
+q_inj_1 = 1.01e-6
+q_inj_2 = 1.32e-6
+beta = 1e-9  # compressibility
+phi = 0.01   # porosity
+alpha = 0.008  # diffusivity coefficient
+dz = Y[7] - Y[6]
+
+# Data saving section
+data_save = yf
+open("x.txt", "a") do file
+    @printf(file, "%.3E\n", data_save)
+end
+
+# Time-stepping loop (main simulation)
+for i in 1:Ni
+    tryagaincount = 0
+    enter = 1
+
+    # Guess
+    Vg = V
+    Vmg = 0.5 * (V .+ Vg)
+    dxg = dx .+ dt * Vmg
+    dxp = dx
+    thetap = theta
+    Vp = V
+
+    while tryagain || enter
+        counter += 1
+
+        if tryagaincount > 1
+            dxg = 0.5 * (dx .+ dxp)
+            Vg = 0.5 * (Vp .+ V)
+            Vmg = 0.5 * (Vp .+ Vg)
+        elseif tryagaincount == 1
+            dxg = dx
+            Vg = V
+            Vmg = 0.5 * (Vp .+ Vg)
+        end
+
+        enter = 0
+        maxV = maximum(Vg)
+
+        if AL == 1
+            thetag = thetap .* exp.(-Vmg * dt ./ L) .+ L ./ Vmg .* (1 .- exp.(-Vmg * dt ./ L))
+        else
+            thetag = L ./ Vmg .* (Vmg .* thetap ./ L) .^ exp.(-Vmg * dt ./ L)
+        end
+
+        pf = pf0
+
+        # Apply boundary conditions
+        pf[1] = 4e6
+        pf[end] = 4e6
+        pf[pf .< 4e6] .= 4e6
+
+        pf[1:3] .= 5e6
+        pf[end-3:end] .= 5e6
+
+        # Crank-Nicolson scheme for diffusion
+        A = zeros(N-1, N-1)
+        b = zeros(N-1)
+        A[1, 1] = 1.0
+        b[1] = pf[1]
+
+        # Additional boundary conditions and time-stepping logic as necessary...
+
+        # Break when iterations are stable
+        if maximum(abs.(dxg - dxp)) < 1e-6
+            break
+        end
+    end
+end
