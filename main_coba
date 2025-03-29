@@ -28,20 +28,8 @@ xf = zeros(N)
 x = LinRange(0, length(yf)-1, length(yf))
 y = yf
 
-G, GN, PU, m, vn, vs, vd, xloc = crack_bem_pert_H(L, mu, nu, x, y)
 # Modify crack_bem_pert_H to generate xloc with N = 1400
 G, GN, PU, m, vn, vs, vd, xloc = crack_bem_pert_H(L, mu, nu, x, y)
-
-Y = xloc[2, :]
-
-# Verify Y length
-if length(Y) >= 7
-    dz = Y[7] - Y[6]
-else
-    println("Error: Y vector has length ", length(Y), ", but expected at least 7.")
-    # Handle the error appropriately (e.g., return, throw an exception)
-end
-
 
 # Extract x and y coordinates of fault nodes
 X = xloc[1, :]
@@ -103,9 +91,9 @@ Linf = Lb / π * (b / (b - a))^2
 println("fault length over Linf = ", LF / Linf)
 
 # Initialization of friction parameters
-b = zeros(N - 1, 1)  # Initialize vector b of length N-1
-a = zeros(N - 1, 1)  # Initialize vector a of length N-1
-L = zeros(N - 1, 1)  # Initialize vector L of length N-1
+b_friction = zeros(N - 1, 1)  # Initialize vector b of length N-1
+a_friction = zeros(N - 1, 1)  # Initialize vector a of length N-1
+L_friction = zeros(N - 1, 1)  # Initialize vector L of length N-1
 
 # Value ranges
 range1_b = [0.0175, 0.0185]
@@ -115,7 +103,7 @@ range2_a = [0.009, 0.012]
 range1_L = [0.00000009, 0.00000012]
 range2_L = [0.00001, 0.00006]
 
-b, a, L = populate_friction_vectors(N)  # Call the function
+b_friction, a_friction, L_friction = populate_friction_vectors(N)  # Call the function
 
 # Initialize other variables
 runner = 1
@@ -137,70 +125,36 @@ q_inj_2 = 1.32e-6
 beta = 1e-9  # compressibility
 phi = 0.01   # porosity
 alpha = 0.008  # diffusivity coefficient
-dz = Y[7] - Y[6]
+
+# Verify Y length
+if length(Y) >= 7
+    dz = Y[7] - Y[6]
+else
+    println("Error: Y vector has length ", length(Y), ", but expected at least 7.")
+    # Handle the error appropriately (e.g., return, throw an exception)
+end
 
 # Data saving section
 data_save = yf
 open("x.txt", "a") do file
-    @printf(file, "%.3E\n", data_save)
+    for value in yf
+        @printf(file, "%.3E\n", value)
+    end
 end
 
-# Time-stepping loop (main simulation)
+# Main code
+global dxp = zeros(N)
+global dx = ones(N)
+global V = ones(N)
+global Vp = ones(N)
+global theta = ones(N)
+global pf0 = ones(10) # Initialize pf0 with at least 7 elements.
+global N = 10
+global AL = 1
+global L = 1
+global dt = 0.1
+
 for i in 1:Ni
-    tryagaincount = 0
-    enter = 1
-
-    # Guess
-    Vg = V
-    Vmg = 0.5 * (V .+ Vg)
-    dxg = dx .+ dt * Vmg
-    dxp = dx
-    thetap = theta
-    Vp = V
-
-    while tryagain || enter
-        counter += 1
-
-        if tryagaincount > 1
-            dxg = 0.5 * (dx .+ dxp)
-            Vg = 0.5 * (Vp .+ V)
-            Vmg = 0.5 * (Vp .+ Vg)
-        elseif tryagaincount == 1
-            dxg = dx
-            Vg = V
-            Vmg = 0.5 * (Vp .+ Vg)
-        end
-
-        enter = 0
-        maxV = maximum(Vg)
-
-        if AL == 1
-            thetag = thetap .* exp.(-Vmg * dt ./ L) .+ L ./ Vmg .* (1 .- exp.(-Vmg * dt ./ L))
-        else
-            thetag = L ./ Vmg .* (Vmg .* thetap ./ L) .^ exp.(-Vmg * dt ./ L)
-        end
-
-        pf = pf0
-
-        # Apply boundary conditions
-        pf[1] = 4e6
-        pf[end] = 4e6
-        pf[pf .< 4e6] .= 4e6
-
-        pf[1:3] .= 5e6
-        pf[end-3:end] .= 5e6
-
-        # Crank-Nicolson scheme for diffusion
-        A = zeros(N-1, N-1)
-        b = zeros(N-1)
-        A[1, 1] = 1.0
-        b[1] = pf[1]
-
-        # Additional boundary conditions and time-stepping logic as necessary...
-
-        # Break when iterations are stable
-        if maximum(abs.(dxg - dxp)) < 1e-6
-            break
-        end
-    end
+    global dx, theta, counter = process_iteration(dx, dxp, theta, V, Vp, pf0, N, AL, L, dt)
+    global dxp = dx
 end
